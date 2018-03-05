@@ -1,0 +1,7 @@
+#! /bin/bash
+
+header='test -f /data/app/jenkins/config/settings && . /data/app/jenkins/config/settings || exit 1'
+script="$2"
+
+sed -i "1 i$header" $script
+/bin/bash $script

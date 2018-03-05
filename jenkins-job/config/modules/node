@@ -1,0 +1,77 @@
+#! /bin/bash
+
+NODE_NPM_DL_PATH="."
+ NODE_SERVER_DIR=""
+NODE_SERVER_USER=""
+   NODE_WEB_ROOT="$NODE_SERVER_DIR"
+
+NODE_VERSION="v6.11.0-linux"
+   NODE_PATH="$JKS_TOOLS_DIR/tools/node"
+
+test "$OS_KERNEL" = "Darwin" && NODE_PATH="$JKS_TOOLS_DIR/node-v8.9.4-darwin-x64"
+    NPM_PATH="$NODE_PATH"
+    CNPM_BIN="$NPM_PATH/bin/cnpm"
+NPM_REGISTRY="https://registry.npm.taobao.org"
+ NPM_OPTIONS="cnpm --registry=$NPM_REGISTRY"
+
+ APP_PORT=3333
+ APP_FILE="."
+ APP_NAME=""
+
+  LIVENESS_PERIOD=30
+ LIVENESS_TIMEOUT=7
+ READINESS_PERIOD=30
+READINESS_TIMEOUT=7
+
+    LIMIT_MIN_MEM="128Mi"
+    LIMIT_MAX_MEM="256Mi"
+
+# Node 项目不需要额外的sudo权限
+SKIP_SUDO=true
+
+NodeNPMInstall(){
+    GitSubmoduleUpdate
+
+    if [ -f package.json ]
+    then
+        msg i "File package.json detected, start npm install"
+
+        $CNPM_BIN install
+        test $? = 0 && msg i "Successfully completed with command npm install" || \
+                       msg e "Command encountered and error with npm install"
+    fi
+}
+
+WebpackJSBuild(){
+    GitSubmoduleUpdate
+
+    webpack_js=./node_modules/webpack/bin/webpack.js
+
+    test -f $webpack_js || msg error "File not found: $webpack_js"
+    if [ "$OS_KERNEL" = "Darwin" ]
+    then
+        msg i "OS $OS_KERNEL, Start npm run build"
+        npm run build
+    else
+        msg i "Start webpack"
+        $webpack_js
+    fi
+
+    test $? != 0 && msg error "build failed"
+}
+
+NJSPController(){
+    load base
+    load file
+    load check
+    load ssh
+    load docker
+    load kubectl
+
+    WEB_ROOT_DIR=""
+
+    NodeNPMInstall
+
+    DockerImageController
+    KubeController
+}

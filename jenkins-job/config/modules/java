@@ -1,0 +1,56 @@
+#! /bin/bash
+
+     APP_PORT=8080
+ RPOJECT_NAME="$APP_SUB"
+
+LIMIT_MIN_CPU="300m"
+LIMIT_MAX_CPU="500m"
+
+LIMIT_MIN_MEM="768Mi"
+LIMIT_MAX_MEM="1024Mi"
+
+test "$APP_ENV" = "PD"  && LIVENESS_IDS=120
+test -z "$LIVENESS_IDS" && LIVENESS_IDS=180
+
+  LIVENESS_PERIOD=20
+ LIVENESS_TIMEOUT=3
+
+    READINESS_IDS=$LIVENESS_IDS
+ READINESS_PERIOD=$LIVENESS_PERIOD
+READINESS_TIMEOUT=$LIVENESS_TIMEOUT
+
+SKIP_SUDO="true"
+
+JavaController(){
+    load base
+    load file
+    load check
+    load ssh
+    load sonar
+    load maven
+    load docker
+    load kubectl
+    load password
+
+      DOCKER_TAG="$SCM_REVISION"
+    WEB_ROOT_DIR="$TOMCAT_WEBAPPS"
+
+    JAVA_MIN_MEM="`echo $LIMIT_MIN_MEM | tr -s 'Mi' 'm' | tr -s 'Gi' 'g'`"
+    JAVA_MAX_MEM="`echo $LIMIT_MAX_MEM | tr -s 'Mi' 'm' | tr -s 'Gi' 'g'`"
+
+    JAVA_MAX_MEM="`echo $(echo $JAVA_MAX_MEM | tr -s "a-z" " ") - 128 | bc`m"
+
+    test -z "$APP_CONFIG_DIR"   &&  APP_CONFIG_DIR="dir/$APP_SUB"
+    test -z "$CONFIG_DIR_NAME"  && CONFIG_DIR_NAME="$(basename $APP_CONFIG_DIR)"
+
+    GitSubmoduleUpdate
+
+    MavenActionAdapter
+
+    SonarQubeController
+
+    DockerfileInit
+    DockerImageController
+
+    KubeController
+}

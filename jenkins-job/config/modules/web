@@ -1,0 +1,59 @@
+#! /bin/bash
+
+# Change owner to nobody
+WRITE_DIRS="data"
+WRITE_USER="nobody"
+  RUN_USER="www"
+  APP_PORT=8000
+  APP_FILE="."
+  APP_NAME="${APP_SUB}"
+
+     LIVENESS_URL="/health_check.php"
+  LIVENESS_PERIOD=30
+ LIVENESS_TIMEOUT=5
+ READINESS_PERIOD=30
+READINESS_TIMEOUT=5
+
+    LIMIT_MIN_MEM="128Mi"
+    LIMIT_MAX_MEM="256Mi"
+
+      SERVER_NAME="$APP_SUB.$DOMAIN"
+
+  SUDO_EXTRA_CMDS="-e REPLACEHOSTS,STARTHTTPDSERVER"
+
+WEBActionAdapter(){
+    load base
+    load file
+    load check
+    load ssh
+    load sudo
+    load sonar
+    load docker
+    load kubectl
+    load password
+
+    test -z "$READINESS_URL"     &&     READINESS_URL="$LIVENESS_URL" && msg i "READINESS_URL=$READINESS_URL"
+    test -z "$HC_CHECK_DIR"      &&      HC_CHECK_DIR="public"
+    test -z "$DOCUMENT_ROOT_DIR" && DOCUMENT_ROOT_DIR="$WWW_ROOT/$APP_NAME/$HC_CHECK_DIR"
+
+    SonarQubeController
+
+    msg i "$APP_NAME"
+
+    DockerfileInit
+
+    vhost="httpd-vhosts.conf"
+
+    msg i "Processing $(basename $vhost)"
+    sed -i "s#SERVER_NAME#$SERVER_NAME#g"   $vhost
+    sed -i "s#DOCUMENT_ROOT_DIR#$DOCUMENT_ROOT_DIR#g" $vhost
+
+    if [ "$LIVENESS_URL" = "/health_check.php" ]
+    then
+        hcf="${HC_CHECK_DIR}${LIVENESS_URL}"
+
+        test -f $hcf || cp -rf $HC_CHECK_FILE $hcf
+    fi
+
+    DockerImageController
+}
